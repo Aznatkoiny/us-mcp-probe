@@ -3,6 +3,7 @@
 // data survives restarts and works on serverless hosts.
 import fs from "node:fs";
 import path from "node:path";
+import { get, put } from "@vercel/blob";
 
 export type ProbeEvent = {
   at: string; // ISO time (UTC)
@@ -91,9 +92,49 @@ class UpstashStore implements Store {
   }
 }
 
+// Vercel Blob (private): one JSON file, updated with ETag checks so two
+// requests at the same time do not lose a write.
+type Doc = { events: ProbeEvent[]; messages: InboxMessage[] };
+class BlobStore implements Store {
+  private key = "probe/probe.json";
+  private async load(): Promise<{ doc: Doc; etag?: string }> {
+    const r = await get(this.key, { access: "private", useCache: false });
+    if (!r || !r.stream) return { doc: { events: [], messages: [] } };
+    const text = await new Response(r.stream).text();
+    return { doc: JSON.parse(text), etag: r.blob.etag };
+  }
+  private async update(fn: (d: Doc) => void) {
+    for (let i = 0; i < 5; i++) {
+      const { doc, etag } = await this.load();
+      fn(doc);
+      try {
+        await put(this.key, JSON.stringify(doc), {
+          access: "private",
+          addRandomSuffix: false,
+          contentType: "application/json",
+          ...(etag ? { ifMatch: etag } : { allowOverwrite: false }),
+        });
+        return;
+      } catch (e) {
+        if (i === 4) throw e;
+        await new Promise((r) => setTimeout(r, 100 + Math.random() * 300));
+      }
+    }
+  }
+  async addEvent(e: ProbeEvent) {
+    await this.update((d) => { d.events.unshift(e); d.events = d.events.slice(0, 2000); });
+  }
+  async events(limit = 500) { return (await this.load()).doc.events.slice(0, limit); }
+  async addMessage(m: InboxMessage) {
+    await this.update((d) => { d.messages.unshift(m); d.messages = d.messages.slice(0, 500); });
+  }
+  async messages(limit = 100) { return (await this.load()).doc.messages.slice(0, limit); }
+}
+
 export function makeStore(): Store {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (url && token) return new UpstashStore(url, token);
+  if (process.env.BLOB_READ_WRITE_TOKEN) return new BlobStore();
   return new FileStore(process.env.DATA_FILE || "./data/probe.json");
 }

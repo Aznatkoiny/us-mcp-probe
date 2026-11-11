@@ -35,11 +35,12 @@ TOKEN_SECRET=$(openssl rand -hex 32) OWNER_PASSPHRASE=choose-one npm run dev
 | `TOKEN_SECRET` | yes | 32+ random characters. Signs client IDs, codes and tokens. Changing it logs every agent out. |
 | `OWNER_PASSPHRASE` | yes | Typed on the consent page and used as `?key=` for `/probe`. |
 | `PUBLIC_URL` | on a host | For example `https://us-probe.vercel.app`. Without it the server uses the request host. |
-| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | on serverless | Keeps the log and inbox. `KV_REST_API_URL`/`KV_REST_API_TOKEN` also work. Without them the server writes `./data/probe.json`, which serverless hosts lose. |
+| `BLOB_READ_WRITE_TOKEN` | on Vercel | Set for you when you connect a private Vercel Blob store. Keeps the log and inbox. |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | optional | Use Redis instead of Blob. Without Blob or Redis the server writes `./data/probe.json`, which serverless hosts lose. |
 
 ## Deploy
 
-Vercel picks up `src/index.ts` (it exports the Express app). Add the env vars above and an Upstash Redis store from the Vercel Marketplace (free tier). Any Node host with a disk (Render, Fly, Railway) also works with no Redis.
+Vercel picks up `src/index.ts` (it exports the Express app). Add the two required env vars and a private Blob store (free on Hobby). See RUNBOOK.md, step 0. Any Node host with a disk (Render, Fly, Railway) also works with no Redis.
 
 ## Limits (test server only)
 
