@@ -182,3 +182,6 @@ app.get("/", (_req, res) => {
     : `<p><b>Setup is not complete.</b> Missing in the Vercel project settings:</p><ul>${s.missing.map((m) => `<li>${esc(m)}</li>`).join("")}</ul><p>Add them, then redeploy.</p>`;
   res.send(page("Us probe", `<p>Test MCP server for the Us app. MCP endpoint: <code>/mcp</code>.</p>${state}`));
 });
+
+// Vercel uses this file as the entry point and needs a default export.
+export default app;
