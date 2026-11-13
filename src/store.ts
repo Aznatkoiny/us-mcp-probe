@@ -136,5 +136,13 @@ export function makeStore(): Store {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (url && token) return new UpstashStore(url, token);
   if (process.env.BLOB_READ_WRITE_TOKEN) return new BlobStore();
-  return new FileStore(process.env.DATA_FILE || "./data/probe.json");
+  // On a read-only host (serverless with no store connected) use the temp
+  // folder, so the server still starts. That data does not last.
+  const file = process.env.DATA_FILE || (process.env.VERCEL ? "/tmp/us-probe/probe.json" : "./data/probe.json");
+  return new FileStore(file);
+}
+
+export function storeKind(): "redis" | "blob" | "file" {
+  if ((process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL) && (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN)) return "redis";
+  return process.env.BLOB_READ_WRITE_TOKEN ? "blob" : "file";
 }

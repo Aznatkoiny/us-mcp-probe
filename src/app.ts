@@ -7,7 +7,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { authRouter, page, publicUrl, verify } from "./auth.js";
-import { makeStore, type InboxMessage, type Store } from "./store.js";
+import { makeStore, storeKind, type InboxMessage, type Store } from "./store.js";
 
 const store: Store = makeStore();
 const iso = () => new Date().toISOString();
@@ -76,6 +76,24 @@ function buildMcp(client: string, userAgent: string | undefined) {
 
 export const app = express();
 app.set("trust proxy", true);
+
+// Setup check. It shows which settings are present, never their values.
+const setup = () => {
+  const missing: string[] = [];
+  if (!process.env.TOKEN_SECRET || process.env.TOKEN_SECRET.length < 32) missing.push("TOKEN_SECRET (32+ characters)");
+  if (!process.env.OWNER_PASSPHRASE) missing.push("OWNER_PASSPHRASE");
+  if (process.env.VERCEL && storeKind() === "file") missing.push("a Blob store connected to the project (BLOB_READ_WRITE_TOKEN)");
+  return { ok: missing.length === 0, missing, storage: storeKind() };
+};
+app.get("/health", (_req, res) => {
+  const s = setup();
+  res.status(s.ok ? 200 : 503).json(s);
+});
+app.use((req, res, next) => {
+  const s = setup();
+  if (s.ok || req.path === "/") return next();
+  res.status(503).json({ error: "setup_incomplete", missing: s.missing });
+});
 app.use(authRouter(store));
 
 const mcpHandler = async (req: Request, res: Response) => {
@@ -157,4 +175,10 @@ app.get("/probe.json", async (req, res) => {
   res.json({ events: await store.events(1000), messages: await store.messages(100) });
 });
 
-app.get("/", (_req, res) => res.send(page("Us probe", "<p>Test MCP server for the Us app. MCP endpoint: <code>/mcp</code>.</p>")));
+app.get("/", (_req, res) => {
+  const s = setup();
+  const state = s.ok
+    ? "<p>Setup is complete.</p>"
+    : `<p><b>Setup is not complete.</b> Missing in the Vercel project settings:</p><ul>${s.missing.map((m) => `<li>${esc(m)}</li>`).join("")}</ul><p>Add them, then redeploy.</p>`;
+  res.send(page("Us probe", `<p>Test MCP server for the Us app. MCP endpoint: <code>/mcp</code>.</p>${state}`));
+});
