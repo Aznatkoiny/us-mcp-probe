@@ -2,20 +2,19 @@
 
 Times in the log are UTC. Plan about 2 days for step 1, because Duet checks in every few hours.
 
-## Step 0: deploy on Vercel (about 5 minutes, one time)
+## Step 0: finish the Vercel setup (about 3 minutes, one time)
 
-1. Go to [vercel.com/new](https://vercel.com/new), pick the team "Antony's projects", and **Import** the repo `Aznatkoiny/us-mcp-probe`. Keep the default settings (Vercel finds Express).
-2. Before you click **Deploy**, open **Environment Variables** and add two:
-   - `TOKEN_SECRET`: a long random string, 40 characters or more. Nobody needs to remember it.
-   - `OWNER_PASSPHRASE`: a passphrase you choose. You type it when an agent connects, and to open the log.
-3. Click **Deploy**. Wait for "Congratulations".
-4. In the project, open **Storage > Create > Blob**. Name it `us-probe`, choose **Private**, and connect it to the project for all environments.
-5. Open **Deployments**, click the three dots on the top deployment, and click **Redeploy**. (The new deploy picks up the Blob token.)
-6. Your `BASE` is the production domain on the project page, for example `https://us-mcp-probe.vercel.app`. Open `BASE/probe?key=PASSPHRASE`. You see the "Us probe log" page. Tell me the BASE URL.
+The project is deployed at `https://us-mcp-probe.vercel.app` and the Blob store is connected. Two settings are missing.
+
+1. Open the project in Vercel, then **Settings > Environment Variables**.
+2. Add `TOKEN_SECRET`: a long random string, 40 characters or more. Nobody needs to remember it.
+3. Add `OWNER_PASSPHRASE`: a passphrase you choose. You type it when an agent connects, and to open the log.
+4. Open **Deployments**, click the three dots on the top deployment, and click **Redeploy**.
+5. Open `https://us-mcp-probe.vercel.app/health`. It shows `"ok":true` when setup is complete.
 
 ## Before you start (one time)
 
-1. The server is deployed at a public HTTPS URL, called `BASE` below (for example `https://us-probe.vercel.app`).
+1. The server is deployed at a public HTTPS URL, called `BASE` below. Here `BASE` is `https://us-mcp-probe.vercel.app`.
 2. You have the owner passphrase.
 3. Open `BASE/probe?key=PASSPHRASE` and keep the tab. This is the evidence log.
 
